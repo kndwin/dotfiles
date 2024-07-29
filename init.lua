@@ -76,6 +76,12 @@ vim.opt.cursorline = true
 -- Minimal number of screen lines to keep above and below the cursor.
 vim.opt.scrolloff = 10
 
+vim.opt.sessionoptions = { -- required
+	"buffers",
+	"tabpages",
+	"globals",
+}
+
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
 
@@ -273,15 +279,6 @@ require("lazy").setup({
 			-- [[ Configure Telescope ]]
 			-- See `:help telescope` and `:help telescope.setup()`
 			require("telescope").setup({
-				-- You can put your default mappings / updates / etc. in here
-				--  All the info you're looking for is in `:help telescope.setup()`
-				--
-				-- defaults = {
-				--   mappings = {
-				--     i = { ['<c-enter>'] = 'to_fuzzy_refine' },
-				--   },
-				-- },
-				-- pickers = {}
 				extensions = {
 					["ui-select"] = {
 						require("telescope.themes").get_dropdown(),
@@ -292,10 +289,12 @@ require("lazy").setup({
 			-- Enable Telescope extensions if they are installed
 			pcall(require("telescope").load_extension, "fzf")
 			pcall(require("telescope").load_extension, "ui-select")
+			pcall(require("telescope").load_extension, "scope")
 
 			-- See `:help telescope.builtin`
 			local builtin = require("telescope.builtin")
-			vim.keymap.set("n", "<leader>sh", builtin.help_tags, { desc = "[S]earch [H]elp" })
+			vim.keymap.set("n", "<leader>sh", builtin.help_tags, { desc = "[S]earch [T]ags" })
+			vim.keymap.set("n", "<leader>sh", builtin.buffers, { desc = "[S]earch [B]uffers" })
 			vim.keymap.set("n", "<leader>sk", builtin.keymaps, { desc = "[S]earch [K]eymaps" })
 			vim.keymap.set("n", "<leader>sf", builtin.find_files, { desc = "[S]earch [F]iles" })
 			vim.keymap.set("n", "<leader>ss", builtin.builtin, { desc = "[S]earch [S]elect Telescope" })
@@ -607,6 +606,39 @@ require("lazy").setup({
 					end
 					return "make install_jsregexp"
 				end)(),
+				config = function()
+					local ls = require("luasnip")
+					local snippet = ls.snippet
+					local text = ls.text_node
+					local insert = ls.insert_node
+
+					local efn_snippet = snippet("efn", {
+						text("export function "),
+						insert(1, "name"),
+						text("("),
+						insert(2),
+						text({ ") {", "\t" }),
+						insert(0),
+						text({ "", "}" }),
+					})
+
+					local fn_snippet = snippet("fn", {
+						text("function "),
+						insert(1, "name"),
+						text("("),
+						insert(2),
+						text({ ") {", "\t" }),
+						insert(0),
+						text({ "", "}" }),
+					})
+
+					local common = { efn_snippet, fn_snippet }
+
+					ls.add_snippets("typescript", common)
+					ls.add_snippets("javascript", common)
+					ls.add_snippets("typescriptreact", common) -- for .tsx files
+					ls.add_snippets("javascriptreact", common) -- for .jsx files
+				end,
 				dependencies = {
 					-- `friendly-snippets` contains a variety of premade snippets.
 					--    See the README about individual language/framework/plugin snippets:
@@ -808,16 +840,7 @@ require("lazy").setup({
 		},
 		cmd = "Neotree",
 		keys = {
-			{ "\\", ":Neotree reveal<CR>", { desc = "NeoTree reveal" } },
-		},
-		opts = {
-			filesystem = {
-				window = {
-					mappings = {
-						["\\"] = "close_window",
-					},
-				},
-			},
+			{ "\\", ":Neotree toggle reveal<CR>", { desc = "NeoTree toggle reveal" } },
 		},
 	},
 	{
@@ -880,8 +903,40 @@ require("lazy").setup({
 		dependencies = { "nvim-tree/nvim-web-devicons" },
 		config = function()
 			require("lualine").setup({
+				sections = {
+					lualine_a = { "mode" },
+					lualine_b = { "branch", "diff", "diagnostics" },
+					lualine_c = { "filename" },
+					lualine_x = { "encoding", "fileformat", "filetype" },
+					lualine_y = { "progress" },
+					lualine_z = { "location" },
+				},
+				tabline = {
+					lualine_a = { "buffers" },
+					lualine_b = { "branch" },
+					lualine_c = { "filename" },
+					lualine_x = {},
+					lualine_y = {},
+					lualine_z = { "tabs" },
+				},
 				options = { theme = "vitesse" },
 			})
+		end,
+	},
+	{
+		"tiagovla/scope.nvim",
+		config = function()
+			require("scope").setup({})
+		end,
+	},
+	{
+		"toppair/peek.nvim",
+		event = { "VeryLazy" },
+		build = "deno task --quiet build:fast",
+		config = function()
+			require("peek").setup()
+			vim.api.nvim_create_user_command("PeekOpen", require("peek").open, {})
+			vim.api.nvim_create_user_command("PeekClose", require("peek").close, {})
 		end,
 	},
 })
